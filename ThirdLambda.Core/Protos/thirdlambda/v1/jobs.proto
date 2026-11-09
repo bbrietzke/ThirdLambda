@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package thirdlambda.v1;
+
+option csharp_namespace = "ThirdLambda.Core.Grpc.V1";
+
+service JobService {
+  rpc GetJob (GetJobRequest) returns (Job);
+  rpc ListJobs (ListJobsRequest) returns (ListJobsResponse);
+}
+
+message GetJobRequest { int32 id = 1; }
+
+message ListJobsRequest { int32 page_size = 1; }
+
+message ListJobsResponse { repeated Job jobs = 1; }
+
+message Job {
+  int32 id = 1;
+  string name = 2;
+  int64 created_at_unix = 3;
+}
