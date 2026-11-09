@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="ThirdLambda.Core/ThirdLambda.Core.csproj" />
+  <Project Path="ThirdLambda.Server/ThirdLambda.Server.csproj" />
+</Solution>
