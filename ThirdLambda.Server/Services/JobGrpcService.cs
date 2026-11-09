@@ -1,6 +1,5 @@
 // Services/JobGrpcService.cs
 using Grpc.Core;
-using Microsoft.EntityFrameworkCore;
 using ThirdLambda.Core.Grpc.V1;
 using ThirdLambda.Server.Data;
 
