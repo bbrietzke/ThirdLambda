@@ -1,6 +1,7 @@
 using System.CommandLine;
 using Microsoft.EntityFrameworkCore;
 using ThirdLambda.Server.Data;
+using ThirdLambda.Server.Services;
 
 namespace ThirdLambda.Server;
 
@@ -11,7 +12,7 @@ public class Program
     private static readonly Option<DatabaseProvider?> DatabaseOption = new("--database", "-d")
     {
         Description = "Database provider (sqlite or sqlserver). Overrides Database:Provider in config.",
-        Recursive = true,   // usable with both serve and migrate
+        Recursive = true,
     };
 
     public static async Task<int> Main(string[] args)
@@ -26,11 +27,9 @@ public class Program
         return await root.Parse(args).InvokeAsync(invocation);
     }
 
-    private static HostApplicationBuilder CreateBuilder(ParseResult parseResult)
+    // Works for both HostApplicationBuilder and WebApplicationBuilder
+    private static void ConfigureDatabase(IHostApplicationBuilder builder, ParseResult parseResult)
     {
-        var builder = Host.CreateApplicationBuilder();
-
-        // Precedence: --database flag > Database:Provider config/env var > SqlServer
         var provider = parseResult.GetValue(DatabaseOption)
             ?? builder.Configuration.GetValue<DatabaseProvider?>("Database:Provider")
             ?? DatabaseProvider.SqlServer;
@@ -47,8 +46,6 @@ public class Program
                     o.UseSqlServer(builder.Configuration.GetConnectionString("SqlServer")));
                 break;
         }
-
-        return builder;
     }
 
     private static Command BuildMigrateCommand()
@@ -57,12 +54,14 @@ public class Program
 
         command.SetAction(async (parseResult, cancellationToken) =>
         {
-            using var host = CreateBuilder(parseResult).Build();
+            var builder = Host.CreateApplicationBuilder();
+            ConfigureDatabase(builder, parseResult);
+
+            using var host = builder.Build();
             await using var scope = host.Services.CreateAsyncScope();
 
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            await db.Database.MigrateAsync(cancellationToken);   // applies that provider's migrations
-
+            await db.Database.MigrateAsync(cancellationToken);
             return 0;
         });
 
@@ -75,11 +74,18 @@ public class Program
 
         command.SetAction(async (parseResult, cancellationToken) =>
         {
-            var builder = CreateBuilder(parseResult);
+            var builder = WebApplication.CreateBuilder();
+            ConfigureDatabase(builder, parseResult);
+
+            builder.Services.AddGrpc();
+            builder.Services.AddThirdLambdaHealthChecks();
             builder.Services.AddHostedService<Worker>();
 
-            using var host = builder.Build();
-            await host.RunAsync();
+            var app = builder.Build();
+            app.MapGrpcService<JobGrpcService>();
+            app.MapThirdLambdaHealthChecks(requireHost: "*:8081");
+
+            await app.RunAsync();
             return 0;
         });
 

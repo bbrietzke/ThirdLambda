@@ -4,6 +4,8 @@ public class Worker(ILogger<Worker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        heartbeat.Register(nameof(Worker), TimeSpan.FromMinutes(2));
+        
         while (!stoppingToken.IsCancellationRequested)
         {
             if (logger.IsEnabled(LogLevel.Information))
