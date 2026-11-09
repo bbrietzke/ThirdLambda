@@ -2,6 +2,7 @@ using System.CommandLine;
 using Microsoft.EntityFrameworkCore;
 using ThirdLambda.Server.Data;
 using ThirdLambda.Server.Services;
+using ThirdLambda.Server.Health;
 
 namespace ThirdLambda.Server;
 
