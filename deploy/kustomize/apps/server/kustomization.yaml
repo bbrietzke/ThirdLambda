@@ -7,6 +7,7 @@ kind: Kustomization
 resources:
   - deployment.yaml
   - service.yaml
+  - networkpolicy.yaml
 
 # Selectors are written out in the manifests and left alone here on purpose: a Deployment's
 # selector is immutable, so a label added here later must not be able to reach it.

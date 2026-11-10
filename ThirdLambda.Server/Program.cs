@@ -84,7 +84,7 @@ public class Program
 
             var app = builder.Build();
             app.MapGrpcService<JobGrpcService>();
-            app.MapThirdLambdaHealthChecks(requireHost: "*:8081");
+            app.MapThirdLambdaHealthChecks(managementPort: 8081);
 
             await app.RunAsync();
             return 0;

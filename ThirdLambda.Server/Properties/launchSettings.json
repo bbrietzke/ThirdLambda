@@ -3,6 +3,7 @@
   "profiles": {
     "ThirdLambda.Server": {
       "commandName": "Project",
+      "commandLineArgs": "serve",
       "dotnetRunMessages": true,
       "environmentVariables": {
         "DOTNET_ENVIRONMENT": "Development"

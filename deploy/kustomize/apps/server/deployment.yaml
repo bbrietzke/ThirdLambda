@@ -6,6 +6,10 @@ spec:
   # Worker runs in every replica and has no leader election, so raise this only once
   # its work is safe to run concurrently.
   replicas: 1
+  # A rolling update would run the old and new Worker side by side. Recreate stops the old
+  # pod first, at the cost of a short outage on each rollout.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: thirdlambda-server

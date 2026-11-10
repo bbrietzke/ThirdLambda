@@ -27,9 +27,11 @@ public static class HealthCheckSetup
 
     /// <summary>
     /// Maps /healthz/live, /healthz/ready and /healthz (all checks, detailed JSON).
-    /// Pass requireHost (e.g. "*:8081") to serve them only on the management port.
+    /// Pass managementPort to serve them only on that port; other ports get a 404.
+    /// This checks the port the connection arrived on, because RequireHost would match the
+    /// Host header, which the client controls.
     /// </summary>
-    public static void MapThirdLambdaHealthChecks(this IEndpointRouteBuilder app, string? requireHost = null)
+    public static void MapThirdLambdaHealthChecks(this IEndpointRouteBuilder app, int? managementPort = null)
     {
         var group = app.MapGroup("/healthz");
 
@@ -49,8 +51,22 @@ public static class HealthCheckSetup
             ResponseWriter = WriteJson,   // every check; for humans and dashboards
         });
 
-        if (requireHost is not null)
-            group.RequireHost(requireHost);
+        if (managementPort is int port)
+        {
+            // Endpoint filters don't run for MapHealthChecks, so wrap the delegate directly.
+            ((IEndpointConventionBuilder)group).Add(endpoint =>
+            {
+                var inner = endpoint.RequestDelegate!;
+                endpoint.RequestDelegate = context =>
+                {
+                    if (context.Connection.LocalPort == port)
+                        return inner(context);
+
+                    context.Response.StatusCode = StatusCodes.Status404NotFound;
+                    return Task.CompletedTask;
+                };
+            });
+        }
     }
 
     // Healthy/Degraded => 200, Unhealthy => 503 (framework defaults); the body explains why.

@@ -1,23 +1,14 @@
 // Services/JobGrpcService.cs
 using Grpc.Core;
 using ThirdLambda.Core.Grpc.V1;
-using ThirdLambda.Server.Data;
 
 namespace ThirdLambda.Server.Services;
 
-public class JobGrpcService(AppDbContext db) : JobService.JobServiceBase
+public class JobGrpcService : JobService.JobServiceBase
 {
-    public override async Task<Job> GetJob(GetJobRequest request, ServerCallContext context)
-    {
-        var job = new ThirdLambda.Core.Grpc.V1.Job { Id = request.Id, Name = "Job " + request.Id, CreatedAtUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds() };
-        return job;
-    }
+    public override Task<Job> GetJob(GetJobRequest request, ServerCallContext context) =>
+        throw new RpcException(new Status(StatusCode.Unimplemented, "GetJob is not implemented yet."));
 
-    public override async Task<ListJobsResponse> ListJobs(ListJobsRequest request, ServerCallContext context)
-    {
-        var size = request.PageSize is > 0 and <= 500 ? request.PageSize : 50;
-
-        var response = new ListJobsResponse();
-        return response;
-    }
+    public override Task<ListJobsResponse> ListJobs(ListJobsRequest request, ServerCallContext context) =>
+        throw new RpcException(new Status(StatusCode.Unimplemented, "ListJobs is not implemented yet."));
 }
