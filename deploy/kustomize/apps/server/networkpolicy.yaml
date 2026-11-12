@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: thirdlambda-server
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: thirdlambda-server
+  policyTypes:
+    - Ingress
+  # Only the gRPC port is open to other pods. Kubelet probes on the management port still
+  # work, because traffic from a pod's own node is always allowed.
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: grpc

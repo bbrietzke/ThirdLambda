@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thirdlambda-server
+spec:
+  # Worker runs in every replica and has no leader election, so raise this only once
+  # its work is safe to run concurrently.
+  replicas: 1
+  # A rolling update would run the old and new Worker side by side. Recreate stops the old
+  # pod first, at the cost of a short outage on each rollout.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: thirdlambda-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: thirdlambda-server
+    spec:
+      automountServiceAccountToken: false
+      # Longer than the 30s .NET host shutdown timeout, so a clean shutdown can finish.
+      terminationGracePeriodSeconds: 45
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1654 # the "app" user in the official .NET images
+        runAsGroup: 1654
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        # EF Core takes a database lock while migrating, so concurrent pods are safe.
+        # A Job is avoided because its pod template is immutable, which would make
+        # `kubectl apply -k` fail on every image change.
+        - name: migrate
+          image: thirdlambda-server
+          args: ["migrate"]
+          envFrom:
+            - configMapRef:
+                name: thirdlambda-server-config
+          env:
+            - name: ConnectionStrings__SqlServer
+              valueFrom:
+                secretKeyRef:
+                  name: thirdlambda-server-secrets
+                  key: ConnectionStrings__SqlServer
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      containers:
+        - name: server
+          image: thirdlambda-server
+          args: ["serve"]
+          ports:
+            - name: grpc
+              containerPort: 3000
+            - name: mgmt
+              containerPort: 8081
+          envFrom:
+            - configMapRef:
+                name: thirdlambda-server-config
+          env:
+            - name: ConnectionStrings__SqlServer
+              valueFrom:
+                secretKeyRef:
+                  name: thirdlambda-server-secrets
+                  key: ConnectionStrings__SqlServer
+          startupProbe:
+            httpGet:
+              path: /healthz/live
+              port: mgmt
+            periodSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /healthz/live
+              port: mgmt
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz/ready
+              port: mgmt
+            periodSeconds: 10
+            # This check queries the database, so the 1s default is too tight.
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
